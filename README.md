@@ -65,17 +65,9 @@ Three layers work together:
 
 ## No-patch fallback (Gatekeeper / SIP machines)
 
-On machines where the app bundle cannot be modified, skip `patch.sh` and instead:
+On machines where the app bundle cannot be modified, skip `patch.sh` and instead: raname fallbackUserChrome.css to userChrome.css and place that in the chrome folder of your profile.
 
-1. Copy the `chrome/` folder into your Firefox profile manually (or clone this repo there).
-2. Make sure `toolkit.legacyUserProfileCustomizations.stylesheets` and `widget.macos.titlebar-blend-mode.behind-window` are set in `about:config` (or via `user.js`).
-3. Edit the first line of `userChrome.css`:
-
-   ```css
-   @import url("fallback.css");
-   ```
-
-`fallback.css` applies the same glass pill to the sidebar but leaves Firefox's built-in expand/collapse in control of the width. Compact overlay mode (`Ctrl+Shift+A` / hover zone) is not available — use the sidebar's own toggle button instead.
+`fallbackUserChrome.css` applies the same glass pill to the sidebar but leaves Firefox's built-in expand/collapse in control of the width. Compact overlay mode (`Ctrl+Shift+A` / hover zone) is not available — use the sidebar's own toggle button instead.
 
 ## Files
 
@@ -83,6 +75,6 @@ On machines where the app bundle cannot be modified, skip `patch.sh` and instead
 |---|---|
 | `userChrome.css` | Main stylesheet — layout, vibrancy, URL bar, content card |
 | `compact.css` | Sidebar pill rules with compact overlay mode (requires patch) |
-| `fallback.css` | Sidebar pill rules without compact mode (no patch required) |
+| `fallbackUserChrome.css` | Sidebar pill rules without compact mode (no patch required) |
 | `patch.sh` | Installer |
 | `unpatch.sh` | Uninstaller |
