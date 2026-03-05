@@ -31,16 +31,34 @@ esac
 find_profile() {
   local ini="$1" base_dir
   base_dir="$(dirname "$ini")"
-  awk -F= '
-    /^\[Profile/ { path=""; is_default=0; is_relative=1 }
-    /^Path=/      { path=$2 }
-    /^IsRelative=/ { is_relative=$2 }
-    /^Default=1/  { is_default=1 }
-    /^$/          { if (is_default && path) { print is_relative ":" path; exit } }
-  ' "$ini" | {
-    IFS=: read -r rel p
-    if [[ "$rel" == "1" ]]; then echo "$base_dir/$p"; else echo "$p"; fi
-  }
+
+  # Modern Firefox/LibreWolf profiles.ini uses [Install<hash>] sections with
+  # Default=<relative-path> rather than Default=1 inside [Profile] sections.
+  # Try the [Install] format first, then fall back to the legacy Default=1 flag.
+
+  local result
+  result="$(awk -F= '
+    /^\[Install/  { in_install=1 }
+    /^\[/         { if (!/^\[Install/) in_install=0 }
+    in_install && /^Default=/ { print "1:" $2; exit }
+  ' "$ini")"
+
+  if [[ -z "$result" ]]; then
+    # Legacy format: Default=1 flag inside a [Profile] section
+    result="$(awk -F= '
+      /^\[Profile/ { path=""; is_default=0; is_relative=1 }
+      /^Path=/      { path=$2 }
+      /^IsRelative=/ { is_relative=$2 }
+      /^Default=1/  { is_default=1 }
+      /^$/          { if (is_default && path) { print is_relative ":" path; exit } }
+      END           { if (is_default && path) print is_relative ":" path }
+    ' "$ini")"
+  fi
+
+  [[ -z "$result" ]] && return
+
+  IFS=: read -r rel p <<< "$result"
+  if [[ "$rel" == "1" ]]; then echo "$base_dir/$p"; else echo "$p"; fi
 }
 
 # Append content to file only if marker string is absent (idempotent).
