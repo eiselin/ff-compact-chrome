@@ -1,0 +1,541 @@
+@import url("compact.css");
+
+/* ============================================================
+   Firefox UI — macOS Vibrancy + Content Card + Vertical Tabs
+   ============================================================
+
+   Required about:config settings:
+   - toolkit.legacyUserProfileCustomizations.stylesheets  → true  (enables userChrome.css)
+   - widget.macos.titlebar-blend-mode.behind-window       → true  (enables macOS window vibrancy)
+
+   Firefox version notes:
+   - light-dark()        → Firefox 120+
+   - @starting-style     → Firefox 129+
+   - linear() easing     → Firefox 129+
+   - Sidebar attributes  → Firefox 130+ internal APIs (no stability guarantee)
+   ============================================================ */
+
+
+/* ============================================================
+   Variables
+   ============================================================ */
+
+:root {
+  /* Enable light-dark() throughout — eliminates all @media dark overrides */
+  color-scheme: light dark;
+
+  /* Layout */
+  --ui-content-radius: 10px;
+  --ui-gap: 8px;
+  --ui-urlbar-width: 580px;
+  --ui-blur: 20px;
+
+  /* Reusable backdrop-filter */
+  --ui-backdrop-filter: blur(var(--ui-blur)) saturate(1.4);
+
+  /* OS accent color palette — derived automatically from system accent */
+  --ui-accent: AccentColor;
+  --ui-accent-muted:  color-mix(in srgb, var(--ui-accent) 20%, transparent);
+  --ui-accent-subtle: color-mix(in srgb, var(--ui-accent)  8%, transparent);
+
+  /* Suppress Firefox's own sidebar background variables */
+  --sidebar-background-color: transparent !important;
+  --lwt-sidebar-background-color: transparent !important;
+  --sidebar-border-color: transparent !important;
+
+  /* ── Themed colors — light / dark handled inline via light-dark() ─────── */
+  --ui-glass-bg-strong:     light-dark(rgba(255,255,255,0.25),  rgba(40,40,40,0.65));
+  --ui-content-shadow:      0 8px 48px 10px
+                              light-dark(rgba(0,0,0,0.40),      rgba(0,0,0,0.60));
+  --ui-status-bg:           light-dark(rgba(255,255,255,0.35),  rgba(30,30,30,0.65));
+  --ui-status-border:       light-dark(rgba(0,0,0,0.06),        rgba(255,255,255,0.10));
+  --ui-content-bg:          light-dark(rgba(255,255,255,0.20),  rgba(28,28,28,0.20));
+  --ui-browser-panel-bg:    light-dark(rgba(255,255,255,0.05),  rgba(40,40,40,0.10));
+  --ui-row-hover-bg:        light-dark(rgba(0,0,0,0.05),        rgba(255,255,255,0.08));
+  --ui-sidebar-expanded-bg: light-dark(rgba(245,245,250,0.88),  rgba(28,32,40,0.92));
+  --ui-panel-bg:            light-dark(rgba(255,255,255,0.85),  rgba(40,40,40,0.85));
+}
+
+
+/* ============================================================
+   Window Base
+   ============================================================ */
+
+/* Transparent so the macOS vibrancy layer shows through.
+   appearance: -moz-sidebar extends vibrancy from the titlebar across the
+   full window. Requires: widget.macos.titlebar-blend-mode.behind-window = true */
+#main-window,
+#main-window:-moz-window-inactive {
+  background: transparent !important;
+  appearance: -moz-sidebar !important;
+}
+
+/* Keep transparency for inactive-state wrapper elements */
+#fullscreen-and-pointerlock-wrapper:-moz-window-inactive,
+#browser-panel:-moz-window-inactive,
+#browser-panel:-moz-window-inactive > * {
+  background: transparent !important;
+}
+
+/* Transparent intermediate containers so vibrancy shows through the gap */
+#fullscreen-and-pointerlock-wrapper,
+#browser-panel > *,
+.deck-selected,
+#tabbrowser-tabpanels,
+#tabbrowser-tabbox,
+#browser,
+#appcontent,
+.browserContainer {
+  background: transparent !important;
+}
+
+/* Frosted glass overlay on the gap area surrounding the content card */
+#browser-panel {
+  background: var(--ui-browser-panel-bg) !important;
+  backdrop-filter: blur(8px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(1.2) !important;
+}
+
+/* All UI chrome is draggable — only interactive elements opt out */
+#main-window,
+#sidebar-main,
+#sidebar-box,
+#navigator-toolbox {
+  -moz-window-dragging: drag !important;
+}
+
+.browserSidebarContainer,
+toolbarbutton,
+.toolbarbutton-1,
+.urlbar-input,
+#urlbar,
+input,
+select,
+textarea,
+.tabbrowser-tab,
+.tab-close-button,
+button,
+[role="button"],
+[role="tab"],
+a {
+  -moz-window-dragging: no-drag !important;
+}
+
+
+/* ============================================================
+   Toolbar — Hidden off-screen (replaced by floating URL bar on Cmd+L)
+   ============================================================ */
+
+#navigator-toolbox {
+  position: fixed !important;
+  top: -9999px !important;
+  left: 0 !important;
+  pointer-events: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+#titlebar,
+#PersonalToolbar {
+  visibility: collapse !important;
+}
+
+
+/* ============================================================
+   Floating URL Bar (Cmd+L)
+   ============================================================
+
+   When Cmd+L is pressed, Firefox focuses the URL bar which triggers
+   :focus-within on #navigator-toolbox. We use that to:
+     1. Expand the toolbox to cover the full viewport
+     2. Show a dark scrim via ::before
+     3. Position the URL bar centered on screen
+   ============================================================ */
+
+#navigator-toolbox:focus-within {
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 10000 !important;
+  pointer-events: none !important;
+}
+
+/* Dark scrim behind the URL bar */
+#navigator-toolbox:focus-within::before {
+  content: "" !important;
+  display: block !important;
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  z-index: 10000 !important;
+  pointer-events: none !important;
+}
+
+/* Nav bar serves no layout role here — just a transparent wrapper */
+#navigator-toolbox:focus-within #nav-bar {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Hide every nav-bar child except the URL bar container */
+#navigator-toolbox:focus-within #nav-bar > * {
+  visibility: collapse !important;
+}
+
+/* URL bar container: fixed, horizontally centered, ~22% from top */
+#navigator-toolbox:focus-within #urlbar-container {
+  visibility: visible !important;
+  position: fixed !important;
+  top: 22vh !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin-inline: auto !important;
+  width: var(--ui-urlbar-width) !important;
+  max-width: 75vw !important;
+  min-width: 0 !important;
+  z-index: 10001 !important;
+  pointer-events: auto !important;
+}
+
+#navigator-toolbox:focus-within #urlbar-container * {
+  visibility: visible !important;
+}
+
+#navigator-toolbox:focus-within #urlbar {
+  --urlbar-height: 48px !important;
+  --urlbar-toolbar-height: 52px !important;
+  --urlbar-background-color: transparent !important;
+  --urlbar-popup-background: transparent !important;
+  font-size: 16px !important;
+  min-height: 48px !important;
+  background: transparent !important;
+}
+
+/* Clear backgrounds so #urlbar-background (the glass layer) shows through */
+#navigator-toolbox:focus-within #urlbar-input-container,
+#navigator-toolbox:focus-within #urlbar-search-splitter,
+#navigator-toolbox:focus-within .urlbarView,
+#navigator-toolbox:focus-within .urlbarView-body-outer,
+#navigator-toolbox:focus-within .urlbarView-body-inner,
+#navigator-toolbox:focus-within .urlbarView-results {
+  background: transparent !important;
+  --panel-background: transparent !important;
+  --arrowpanel-background: transparent !important;
+}
+
+/* Input area — flush with panel, no separate background */
+#navigator-toolbox:focus-within #urlbar-input-container {
+  padding-inline: 12px !important;
+  margin: 2px 4px !important;
+}
+
+/* Glass background behind the input + dropdown */
+#navigator-toolbox:focus-within #urlbar-background {
+  border-radius: 12px !important;
+  background: var(--ui-glass-bg-strong) !important;
+  backdrop-filter: blur(40px) saturate(1.8) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15),
+              0 0 0 1px rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Deeper shadow once the URL bar is fully in breakout-extend state */
+#urlbar[breakout-extend="true"] #urlbar-background {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15),
+              0 0 0 1px rgba(255, 255, 255, 0.4),
+              0 30px 100px -10px
+                light-dark(rgba(0,0,0,0.25), rgba(0,0,0,0.55)) !important;
+}
+
+/* URL bar dropdown */
+#navigator-toolbox:focus-within .urlbarView {
+  width: var(--ui-urlbar-width) !important;
+  max-width: 75vw !important;
+  border: none !important;
+  margin-top: 0 !important;
+  padding-top: 4px !important;
+}
+
+/* Kill ALL separator lines and borders inside the urlbar dropdown */
+#navigator-toolbox:focus-within .urlbarView *,
+#navigator-toolbox:focus-within .urlbarView *::before,
+#navigator-toolbox:focus-within .urlbarView *::after {
+  border-top: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+#navigator-toolbox:focus-within .urlbarView-group-label,
+#navigator-toolbox:focus-within [role="separator"],
+#navigator-toolbox:focus-within .urlbarView-separator {
+  border: none !important;
+  background-image: none !important;
+}
+
+#navigator-toolbox:focus-within .urlbarView-row {
+  background: transparent !important;
+  margin-inline: 6px !important;
+  border: none !important;
+}
+
+/* Spotlight-style: selected row uses accent-color pill */
+#navigator-toolbox:focus-within .urlbarView-row[selected] {
+  background: var(--ui-accent) !important;
+  border-radius: 10px !important;
+}
+
+/* White text on selected row — universal `*` covers all descendants */
+#navigator-toolbox:focus-within .urlbarView-row[selected] * {
+  color: white !important;
+}
+
+#navigator-toolbox:focus-within .urlbarView-row:not([selected]):hover {
+  background: var(--ui-row-hover-bg) !important;
+  border-radius: 10px !important;
+}
+
+/* Padding around the results list, no scrollbar */
+#navigator-toolbox:focus-within .urlbarView-body-inner {
+  padding: 4px 0 !important;
+  scrollbar-width: none !important;
+}
+
+
+/* ============================================================
+   Sidebar / Vertical Tabs
+   ============================================================
+   FRAGILITY NOTE (Firefox 130+): #sidebar-main, #sidebar-launcher,
+   and the sidebar-launcher-* attributes are internal implementation
+   details of the new sidebar architecture. They may change without
+   notice in future Firefox/LibreWolf versions.
+   ============================================================ */
+
+/* Collapsed icon strip — transparent */
+#sidebar-main {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+
+  /* Push transparency tokens into the Lit shadow DOM (custom props inherit) */
+  --color-layer-1: transparent !important;
+  --color-layer-2: transparent !important;
+  --panel-background: transparent !important;
+  --arrowpanel-background: transparent !important;
+  --sidebar-background-color: transparent !important;
+  --lwt-sidebar-background-color: transparent !important;
+}
+
+
+/* sidebar-main Lit custom element host */
+sidebar-main {
+  background: transparent !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+
+/* Icon strip container */
+#sidebar-launcher {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+/* Expanded panel for bookmarks, history, extensions, etc. */
+#sidebar-box {
+  margin: var(--ui-gap) 0 var(--ui-gap) var(--ui-gap) !important;
+  border-radius: var(--ui-content-radius) !important;
+  box-shadow: var(--ui-content-shadow) !important;
+  background: var(--ui-sidebar-expanded-bg) !important;
+  border: none !important;
+  overflow: clip !important;
+}
+
+#sidebar {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Ensure sidebar panel content is transparent so frosted glass shows through */
+#sidebar-box .sidebar-panel,
+#sidebar-box .sidebar-panel > *,
+#sidebar-box #search-box,
+#sidebar-box tree,
+#sidebar-box treechildren,
+#sidebar-box listheader,
+#sidebar-box richlistbox {
+  background: transparent !important;
+}
+
+/* Hide splitters — layout is handled by the sidebar's own resize logic */
+#sidebar-splitter,
+#sidebar-launcher-splitter,
+.sidebar-splitter {
+  opacity: 0 !important;
+  width: 1px !important;
+  min-width: 1px !important;
+  max-width: 1px !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* Tab strip (used when sidebar is not the primary tab UI) */
+#TabsToolbar,
+#tabbrowser-tabs,
+#tabbrowser-arrowscrollbox {
+  background: transparent !important;
+  border: none !important;
+}
+
+.tabbrowser-tab {
+  background: transparent !important;
+}
+
+.tabbrowser-tab .tab-background {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Tab close button — only show on hover or when tab is selected */
+.tabbrowser-tab:not([selected]):not(:hover) .tab-close-button {
+  display: none !important;
+}
+
+
+/* ============================================================
+   Content Area — Transparent Containers + Rounded Card
+   ============================================================ */
+
+/* Transparent intermediate containers */
+#browser {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  position: relative !important; /* containing block for compact sidebar */
+}
+
+#appcontent,
+#tabbrowser-tabbox,
+#tabbrowser-tabpanels,
+.browserContainer {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* Content card: rounded corners, drop shadow, margin from window edges */
+.browserSidebarContainer {
+  background: transparent !important;
+  border: none !important;
+  overflow: clip !important;
+  border-radius: var(--ui-content-radius) !important;
+  box-shadow: var(--ui-content-shadow) !important;
+  margin: var(--ui-gap) !important;
+}
+
+.browserStack,
+#browsing-context-stack {
+  border-radius: var(--ui-content-radius) !important;
+  overflow: clip !important;
+  border: none !important;
+}
+
+browser[type="content"] {
+  border-radius: var(--ui-content-radius) !important;
+  border: none !important;
+  background: white !important;
+}
+
+
+/* ============================================================
+   Toolbar Buttons
+   ============================================================ */
+
+.toolbarbutton-1,
+.urlbar-page-action,
+.identity-box-button {
+  transition: background-color 0.1s ease, transform 0.15s ease !important;
+}
+
+.toolbarbutton-1:not([open="true"]):active:hover,
+.urlbar-page-action:active:hover {
+  transform: scale(0.95) !important;
+}
+
+/* Hide Firefox View tab (the recent-activity pinned tab) */
+#firefox-view-button {
+  display: none !important;
+}
+
+
+/* ============================================================
+   Popups and Panels
+   ============================================================ */
+
+panel[type="arrow"],
+menupopup {
+  --panel-background: var(--ui-panel-bg) !important;
+  --arrowpanel-background: var(--ui-panel-bg) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+panel[type="arrow"] .panel-arrowcontent,
+panel[type="arrow"] panelmultiview,
+panel[type="arrow"] panelview {
+  background: var(--ui-panel-bg) !important;
+  backdrop-filter: var(--ui-backdrop-filter) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2) !important;
+  overflow: clip !important;
+}
+
+
+/* ============================================================
+   Notification Bar — Floating Toast (bottom-right)
+   ============================================================ */
+
+.notificationbox-stack {
+  position: fixed !important;
+  bottom: 12px !important;
+  right: 12px !important;
+  width: fit-content !important;
+  max-width: 30rem !important;
+  z-index: 9999 !important;
+}
+
+.notificationbox-stack notification-message {
+  border-radius: 10px !important;
+  background: var(--ui-panel-bg) !important;
+  backdrop-filter: var(--ui-backdrop-filter) !important;
+  border: 1px solid var(--ui-status-border) !important;
+}
+
+
+/* ============================================================
+   Status Panel (link hover tooltip)
+   ============================================================ */
+
+#statuspanel {
+  padding: 6px !important;
+}
+
+#statuspanel-label {
+  border-radius: 16px !important;
+  border: 1px solid var(--ui-status-border) !important;
+  padding: 4px 8px 5px 8px !important;
+  font-weight: 600 !important;
+  background: var(--ui-status-bg) !important;
+  backdrop-filter: blur(var(--ui-blur)) !important;
+}

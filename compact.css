@@ -1,0 +1,48 @@
+/* compact.css — Sidebar layout and appearance
+   [compact-sidebar] toggled by AutoConfig keydown handler (Ctrl+Shift+A).
+   [sidebar-hover]   set by the JS hover zone (hover-patch.js).
+   Adjust 260px to match your preferred panel width if needed.
+*/
+
+/* ── Normal mode: permanent pill ─────────────────────────────────────── */
+/* margin-right: 0 lets the content card's own left margin form the gap  */
+:root:not([compact-sidebar]) #sidebar-main {
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: 260px !important;
+  margin: var(--ui-gap) 0 var(--ui-gap) var(--ui-gap) !important;
+  background: var(--ui-sidebar-expanded-bg) !important;
+  border-radius: var(--ui-content-radius) !important;
+  box-shadow: var(--ui-content-shadow) !important;
+  overflow: clip !important;
+  transition: none !important;
+}
+
+/* ── Compact mode: hidden ─────────────────────────────────────────────── */
+:root[compact-sidebar]:not([sidebar-hover]) #sidebar-main {
+  display: none !important;
+}
+
+/* ── Compact mode: overlay on hover ───────────────────────────────────── */
+/* margin-right = -(width + margin-left) so flex contribution = 0, no shift */
+:root[compact-sidebar][sidebar-hover] #sidebar-main {
+  display: flex !important;
+  width: 260px !important;
+  min-width: 0 !important;
+  max-width: 260px !important;
+  margin: var(--ui-gap) calc(-260px - var(--ui-gap)) var(--ui-gap) var(--ui-gap) !important;
+  transform: translateZ(0) !important;
+  z-index: 100 !important;
+  overflow: clip !important;
+  background: var(--ui-sidebar-expanded-bg) !important;
+  border-radius: var(--ui-content-radius) !important;
+  box-shadow: var(--ui-content-shadow) !important;
+  /* Width must never animate (shift); only opacity fades in */
+  transition: opacity 0.15s ease !important;
+}
+
+@starting-style {
+  :root[compact-sidebar][sidebar-hover] #sidebar-main {
+    opacity: 0;
+  }
+}
